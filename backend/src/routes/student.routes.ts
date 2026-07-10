@@ -1,0 +1,37 @@
+import { Router } from 'express';
+import { studentController } from '@/controllers/student.controller';
+import { notificationController } from '@/controllers/notification.controller';
+import { commandCenterController } from '@/controllers/commandCenter.controller';
+import { gamificationController } from '@/controllers/gamification.controller';
+import { paymentController } from '@/controllers/payment.controller';
+import { authenticate } from '@/middleware/auth';
+import { asyncHandler } from '@/utils/asyncHandler';
+
+/** Authenticated student's own dashboard + profile + enrollments + notifications. */
+const router = Router();
+
+router.use(authenticate);
+
+router.get('/dashboard', asyncHandler(studentController.dashboard));
+router.get('/command-center', asyncHandler(commandCenterController.overview));
+router.get('/gamification', asyncHandler(gamificationController.profile));
+router.post('/live-classes/:id/attend', asyncHandler(gamificationController.attendLiveClass));
+router.get('/courses', asyncHandler(studentController.myCourses));
+router.post('/enroll', asyncHandler(studentController.enroll));
+
+// Payments (Razorpay)
+router.post('/payments/order', asyncHandler(paymentController.createOrder));
+router.post('/payments/verify', asyncHandler(paymentController.verify));
+router.get('/payments', asyncHandler(paymentController.myPayments));
+
+router.get('/profile', asyncHandler(studentController.getProfile));
+router.get('/academies', asyncHandler(studentController.listAcademies));
+router.patch('/profile', asyncHandler(studentController.updateProfile));
+
+// Notifications
+router.get('/notifications', asyncHandler(notificationController.list));
+router.get('/notifications/unread-count', asyncHandler(notificationController.unreadCount));
+router.patch('/notifications/:id/read', asyncHandler(notificationController.markRead));
+router.post('/notifications/read-all', asyncHandler(notificationController.markAllRead));
+
+export { router as studentRoutes };

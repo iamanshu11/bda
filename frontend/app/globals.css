@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+ * Design tokens — semantic colors mapped in tailwind.config.ts.
+ * Values are space-separated RGB channels so Tailwind's <alpha-value> works.
+ * ------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --bg: 255 255 255;
+    --surface: 255 255 255;
+    --surface-alt: 238 243 251; /* light navy tint used for alternating sections */
+    --fg: 14 36 80; /* navy-800 text */
+    --muted: 90 105 130;
+    --border: 226 232 240;
+  }
+
+  .dark {
+    --bg: 6 17 40; /* navy-950 */
+    --surface: 14 36 80; /* navy-800 */
+    --surface-alt: 10 28 63; /* navy-900 */
+    --fg: 226 235 250;
+    --muted: 148 163 184;
+    --border: 30 48 99;
+  }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--fg));
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .container-bda {
+    @apply mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Skeleton shimmer used by loaders */
+  .skeleton {
+    @apply relative overflow-hidden bg-surface-alt;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    content: '';
+  }
+}

@@ -16,6 +16,7 @@ import { learningRoutes } from './learning.routes';
 import { competitiveRoutes } from './competitive.routes';
 import { uploadRoutes } from './upload.routes';
 import { dashboardRoutes, settingsRoutes } from './protected.routes';
+import { publicTestRoutes, studentTestRoutes } from './writtenTest.routes';
 
 /**
  * API v1 router. Mounted at env.API_PREFIX (default /api/v1) in app.ts.
@@ -37,6 +38,7 @@ router.get('/', (_req, res) => {
         'testimonials',
         'contact',
         'students',
+        'tests',
         'users',
         'admin',
         'dashboard',
@@ -54,10 +56,12 @@ router.use('/gallery', galleryRoutes);
 router.use('/results', resultsRoutes);
 router.use('/testimonials', testimonialsRoutes);
 router.use('/contact', contactRoutes);
+router.use('/', publicTestRoutes);
 
 router.use('/students', studentRoutes);
 router.use('/students', learningRoutes);
 router.use('/students', competitiveRoutes);
+router.use('/students', studentTestRoutes);
 router.use('/admin', adminRoutes);
 router.use('/admin', moduleAdminRoutes);
 router.use('/uploads', uploadRoutes);

@@ -24,6 +24,32 @@ export interface ApiCourse {
   faculties?: ApiFaculty[];
   faqs?: ApiFaq[];
   demoVideos?: { id: string; title: string; url: string }[];
+  previewModules?: ApiPreviewModule[];
+  rating?: { average: number; count: number };
+}
+
+export interface ApiPreviewModule {
+  id: string;
+  moduleNumber: number;
+  title: string;
+  description?: string | null;
+  youtubeUrl?: string | null;
+  youtubeIframe?: string | null;
+  notes?: string | null;
+  estimatedDuration?: string | null;
+  quiz?: {
+    passingMarks: number;
+    questions: { id: string; question: string; optionA: string; optionB: string; optionC: string; optionD: string }[];
+  } | null;
+}
+
+export interface ApiReview {
+  id: string;
+  rating: number;
+  title?: string | null;
+  body?: string | null;
+  author: string;
+  createdAt: string;
 }
 
 export interface ApiFaculty {

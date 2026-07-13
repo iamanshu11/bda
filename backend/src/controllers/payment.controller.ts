@@ -1,24 +1,33 @@
 import type { Response } from 'express';
 import { z } from 'zod';
 import { paymentService } from '@/services/payment.service';
+import { couponService } from '@/services/coupon.service';
 import { sendSuccess } from '@/utils/ApiResponse';
 import { ApiError } from '@/utils/ApiError';
 import { HttpStatus } from '@/constants';
 import type { AuthenticatedRequest } from '@/interfaces';
 
-const orderSchema = z.object({ courseId: z.string().min(1) });
+const orderSchema = z.object({ courseId: z.string().min(1), couponCode: z.string().optional() });
 const verifySchema = z.object({
   razorpayOrderId: z.string().min(1),
   razorpayPaymentId: z.string().min(1),
   razorpaySignature: z.string().min(1),
 });
+const couponSchema = z.object({ code: z.string().min(1), courseId: z.string().min(1) });
 
 export const paymentController = {
   async createOrder(req: AuthenticatedRequest, res: Response) {
     const parsed = orderSchema.safeParse(req.body);
     if (!parsed.success) throw ApiError.badRequest('courseId is required');
-    const data = await paymentService.createOrder(req.user!.userId, parsed.data.courseId);
+    const data = await paymentService.createOrder(req.user!.userId, parsed.data.courseId, parsed.data.couponCode);
     return sendSuccess(res, data, data.free ? 'Enrolled (free course)' : 'Order created', HttpStatus.CREATED);
+  },
+
+  async validateCoupon(req: AuthenticatedRequest, res: Response) {
+    const parsed = couponSchema.safeParse(req.body);
+    if (!parsed.success) throw ApiError.badRequest('code and courseId are required');
+    const data = await couponService.evaluate(req.user!.userId, parsed.data.code, parsed.data.courseId);
+    return sendSuccess(res, data, 'Coupon applied');
   },
 
   async verify(req: AuthenticatedRequest, res: Response) {

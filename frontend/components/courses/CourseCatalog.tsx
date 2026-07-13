@@ -6,6 +6,7 @@ import { ArrowRight, BookOpen, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Container } from '@/components/ui/Container';
 import { Reveal } from '@/components/ui/Reveal';
+import { WishlistButton } from '@/components/courses/WishlistButton';
 import type { ApiCategory, ApiCourse } from '@/types/api';
 
 /**
@@ -108,6 +109,9 @@ export function CourseCatalog({
                           {course.badge}
                         </span>
                       )}
+                      <span className="ml-auto">
+                        <WishlistButton courseId={course.id} />
+                      </span>
                     </div>
                     <h3 className="mt-4 font-heading text-lg font-bold text-foreground">{course.title}</h3>
                     {course.category?.name && <p className="text-xs text-muted">{course.category.name}</p>}

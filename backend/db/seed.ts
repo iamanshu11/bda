@@ -201,6 +201,7 @@ async function main() {
           youtubeUrl: m.youtubeUrl,
           estimatedDuration: m.estimatedDuration,
           notes: m.notes,
+          isPreview: m.moduleNumber === 1, // first operation is a free preview
         },
       });
       const quiz = await prisma.moduleQuiz.create({
@@ -303,6 +304,116 @@ async function main() {
     });
     console.log(`  ✓ Quiz battles seeded (${battle.id.slice(0, 8)}…)`);
   }
+
+  // 7. Sample coupons
+  const coupons = [
+    { code: 'WELCOME50', type: 'PERCENTAGE' as const, value: 50, maxDiscount: 5000, perUserLimit: 1 },
+    { code: 'ARMY20', type: 'PERCENTAGE' as const, value: 20, perUserLimit: 1 },
+    { code: 'BDA2026', type: 'FIXED' as const, value: 2000, perUserLimit: 1 },
+  ];
+  for (const c of coupons) {
+    await prisma.coupon.upsert({ where: { code: c.code }, update: {}, create: c });
+  }
+  console.log('  ✓ Coupons seeded');
+
+  // 9. Sample written test (₹299, secure exam ready)
+  const from = new Date();
+  from.setDate(from.getDate() - 1);
+  const to = new Date();
+  to.setDate(to.getDate() + 30);
+  const reveal = new Date();
+  reveal.setDate(reveal.getDate() + 31);
+
+  const sampleTest = await prisma.writtenTest.upsert({
+    where: { slug: 'nda-mock-test-01' },
+    update: {
+      marksPerQuestion: 4,
+      negativeMark: 0.25,
+      passingMarks: 8,
+    },
+    create: {
+      title: 'NDA Mock Test 01',
+      slug: 'nda-mock-test-01',
+      description: 'A paid full-length MCQ mock for NDA aspirants. Secure exam mode enabled.',
+      instructions:
+        'Stay in full-screen mode. Do not switch tabs or leave the exam window. Exceeding 3 cheating attempts will auto-submit your test.',
+      price: 299,
+      durationMins: 30,
+      marksPerQuestion: 4,
+      passingMarks: 8,
+      negativeMark: 0.25,
+      shuffle: true,
+      availableFrom: from,
+      availableTo: to,
+      answersRevealAt: reveal,
+      status: 'PUBLISHED',
+      maxCheatingAttempts: 3,
+      offlineAutoSubmitMins: 5,
+      totalQuestions: 5,
+      questions: {
+        create: [
+          {
+            question: 'Who conducts the NDA examination?',
+            optionA: 'SSC',
+            optionB: 'UPSC',
+            optionC: 'IBPS',
+            optionD: 'RRB',
+            correctOption: 'B',
+            explanation: 'UPSC conducts NDA.',
+            marks: 4,
+            order: 1,
+          },
+          {
+            question: 'NDA Academy (Army) is located at?',
+            optionA: 'Dehradun',
+            optionB: 'Pune',
+            optionC: 'Khadakwasla',
+            optionD: 'Gaya',
+            correctOption: 'A',
+            marks: 4,
+            order: 2,
+          },
+          {
+            question: 'Minimum age for NDA (approx)?',
+            optionA: '16',
+            optionB: '16.5',
+            optionC: '17',
+            optionD: '18',
+            correctOption: 'B',
+            marks: 4,
+            order: 3,
+          },
+          {
+            question: 'Which is a fundamental right under the Indian Constitution?',
+            optionA: 'Right to Property (absolute)',
+            optionB: 'Right to Equality',
+            optionC: 'Right to Vote only',
+            optionD: 'Right to Rule',
+            correctOption: 'B',
+            marks: 4,
+            order: 4,
+          },
+          {
+            question: 'HCF of 12 and 18 is?',
+            optionA: '6',
+            optionB: '9',
+            optionC: '12',
+            optionD: '3',
+            correctOption: 'A',
+            marks: 4,
+            order: 5,
+          },
+        ],
+      },
+    },
+  });
+
+  // Keep sample question marks aligned with test defaults when re-seeding
+  await prisma.writtenTestQuestion.updateMany({
+    where: { testId: sampleTest.id },
+    data: { marks: 4 },
+  });
+  console.log(`  ✓ Written test seeded (${sampleTest.slug})`);
 
   console.log('✅ Seeding complete');
 }

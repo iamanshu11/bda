@@ -14,7 +14,10 @@ export interface CrudControllerOptions {
   updateSchema?: ZodSchema;
   filterableFields?: string[];
   /** Optional hook to enrich data before create/update (e.g. generate slug). */
-  transform?: (data: Record<string, unknown>) => Record<string, unknown>;
+  transform?: (
+    data: Record<string, unknown>,
+    id?: string,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
 
 /**
@@ -55,14 +58,14 @@ export function makeCrudController(service: CrudService, opts: CrudControllerOpt
 
     create: async (req: Request, res: Response) => {
       let data = validate(opts.createSchema, req.body);
-      if (opts.transform) data = opts.transform(data);
+      if (opts.transform) data = await opts.transform(data);
       const created = await service.create(data);
       return sendSuccess(res, created, `${opts.label} created`, HttpStatus.CREATED);
     },
 
     update: async (req: Request, res: Response) => {
       let data = validate(opts.updateSchema, req.body);
-      if (opts.transform) data = opts.transform(data);
+      if (opts.transform) data = await opts.transform(data, req.params.id);
       const updated = await service.update(req.params.id, data);
       return sendSuccess(res, updated, `${opts.label} updated`);
     },

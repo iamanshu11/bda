@@ -103,7 +103,7 @@ export const studentService = {
 
   updateProfile(
     userId: string,
-    data: { name?: string; phone?: string; avatarUrl?: string; state?: string; academyId?: string },
+    data: { name?: string; phone?: string; avatarUrl?: string; state?: string; academyId?: string | null },
   ) {
     return prisma.user.update({
       where: { id: userId },

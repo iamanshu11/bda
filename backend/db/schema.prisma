@@ -120,6 +120,11 @@ model User {
   liveClassAttendance LiveClassAttendance[]
   battleParticipants  QuizBattleParticipant[]
   payments       Payment[]
+  reviews        CourseReview[]
+  wishlist       Wishlist[]
+  writtenTestEnrollments WrittenTestEnrollment[]
+  writtenTestAttempts    WrittenTestAttempt[]
+  examViolations         ExamViolation[]
 
   totalXp        Int       @default(0)
   state          String?
@@ -221,6 +226,9 @@ model Course {
   liveClasses   LiveClass[]
   quizBattles   QuizBattle[]
   payments      Payment[]
+  coupons       Coupon[]
+  reviews       CourseReview[]
+  wishlistedBy  Wishlist[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -234,28 +242,118 @@ enum PaymentStatus {
   CREATED
   PAID
   FAILED
+  REFUNDED
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
+enum CouponStatus {
+  ACTIVE
+  DISABLED
 }
 
 model Payment {
   id                String        @id @default(uuid())
   userId            String
   user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId          String
-  course            Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  amount            Int           // in paise
+  courseId          String?
+  course            Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  testId            String?
+  test              WrittenTest?  @relation(fields: [testId], references: [id], onDelete: Cascade)
+  amount            Int           // final amount charged, in paise
+  originalAmount    Int?          // pre-discount amount, in paise
   currency          String        @default("INR")
   status            PaymentStatus @default(CREATED)
+  couponId          String?
+  coupon            Coupon?       @relation(fields: [couponId], references: [id])
+  discountApplied   Int           @default(0) // in paise
   razorpayOrderId   String        @unique
   razorpayPaymentId String?
   razorpaySignature String?
+  refundId          String?
   receipt           String?
+  redemption        CouponRedemption?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   @@index([userId])
   @@index([courseId])
+  @@index([testId])
   @@index([status])
   @@map("payments")
+}
+
+model Coupon {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  type        CouponType   @default(PERCENTAGE)
+  value       Int          // percent (1-100) or fixed amount in rupees
+  maxDiscount Int?         // cap for percentage coupons, in rupees
+  minAmount   Int?         // minimum course price in rupees to qualify
+  expiryAt    DateTime?
+  maxUses     Int?         // total redemptions allowed (null = unlimited)
+  perUserLimit Int         @default(1)
+  usedCount   Int          @default(0)
+  status      CouponStatus @default(ACTIVE)
+  courseId    String?      // null = valid on all courses
+  course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  redemptions CouponRedemption[]
+  payments    Payment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id              String   @id @default(uuid())
+  couponId        String
+  coupon          Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId          String
+  paymentId       String   @unique
+  payment         Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  discountApplied Int      // in paise
+  createdAt       DateTime @default(now())
+
+  @@unique([couponId, userId])
+  @@index([userId])
+  @@map("coupon_redemptions")
+}
+
+model CourseReview {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5
+  title      String?
+  body       String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([isApproved])
+  @@map("course_reviews")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@map("wishlists")
 }
 
 model LiveClass {
@@ -546,6 +644,7 @@ model CourseModule {
   notes             String?  @db.Text // rich HTML
   attachmentUrl     String?           // optional PDF
   estimatedDuration String?
+  isPreview         Boolean  @default(false) // free preview before purchase
   order             Int      @default(0)
 
   quiz              ModuleQuiz?
@@ -754,4 +853,159 @@ model QuizBattleAnswer {
   @@unique([participantId, questionId])
   @@index([participantId])
   @@map("quiz_battle_answers")
+}
+
+// ---------------------------------------------------------------------------
+// Written Tests (paid standalone MCQ mocks) + Secure Exam Mode
+// ---------------------------------------------------------------------------
+enum TestStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TestAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
+enum ExamViolationType {
+  WINDOW_MINIMIZED
+  TAB_HIDDEN
+  WINDOW_BLUR
+  FULLSCREEN_EXIT
+  PAGE_REFRESH
+  DEVTOOLS
+  CLIPBOARD
+  RIGHT_CLICK
+  SHORTCUT
+  MULTI_TAB
+  MULTI_DEVICE
+  OFFLINE
+}
+
+model WrittenTest {
+  id                    String   @id @default(uuid())
+  title                 String
+  slug                  String   @unique
+  description           String?
+  instructions          String?  @db.Text
+  price                 Int      @default(299)
+  durationMins          Int?
+  totalQuestions        Int      @default(0)
+  /** Default marks awarded for a correct answer (overridable per question). */
+  marksPerQuestion      Float    @default(1)
+  passingMarks          Float?
+  /** Marks deducted for each wrong answer (0 = no negative marking). */
+  negativeMark          Float    @default(0)
+  shuffle               Boolean  @default(true)
+  availableFrom         DateTime
+  availableTo           DateTime
+  answersRevealAt       DateTime?
+  status                TestStatus @default(DRAFT)
+  maxCheatingAttempts   Int      @default(3)
+  offlineAutoSubmitMins Int?     @default(5)
+
+  questions   WrittenTestQuestion[]
+  enrollments WrittenTestEnrollment[]
+  attempts    WrittenTestAttempt[]
+  payments    Payment[]
+  violations  ExamViolation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([availableFrom, availableTo])
+  @@map("written_tests")
+}
+
+model WrittenTestQuestion {
+  id            String        @id @default(uuid())
+  testId        String
+  test          WrittenTest   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question      String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctOption CorrectOption
+  explanation   String?
+  marks         Float         @default(1)
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
+
+  @@index([testId])
+  @@map("written_test_questions")
+}
+
+model WrittenTestEnrollment {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId    String
+  test      WrittenTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  paymentId String?
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, testId])
+  @@index([testId])
+  @@map("written_test_enrollments")
+}
+
+model WrittenTestAttempt {
+  id                   String            @id @default(uuid())
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId               String
+  test                 WrittenTest       @relation(fields: [testId], references: [id], onDelete: Cascade)
+  status               TestAttemptStatus @default(IN_PROGRESS)
+  startedAt            DateTime          @default(now())
+  submittedAt          DateTime?
+  score                Float?
+  totalMarks           Float?
+  correct              Int?
+  wrong                Int?
+  answers              Json?
+  cheatingCount        Int               @default(0)
+  sessionToken         String?
+  lastHeartbeatAt      DateTime?
+  currentQuestionIndex Int?
+  clientIp             String?
+  userAgent            String?
+  autoSubmitted        Boolean           @default(false)
+  autoSubmitReason     String?
+  createdAt            DateTime          @default(now())
+
+  violations ExamViolation[]
+
+  @@unique([userId, testId])
+  @@index([testId])
+  @@index([status])
+  @@map("written_test_attempts")
+}
+
+model ExamViolation {
+  id        String            @id @default(uuid())
+  attemptId String
+  attempt   WrittenTestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId    String
+  test      WrittenTest       @relation(fields: [testId], references: [id], onDelete: Cascade)
+  type      ExamViolationType
+  browser   String?
+  os        String?
+  device    String?
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  @@index([attemptId])
+  @@index([testId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("exam_violations")
 }

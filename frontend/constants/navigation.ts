@@ -7,6 +7,7 @@ export interface NavItem {
 export const mainNav: NavItem[] = [
   { label: 'Home', href: '/' },
   { label: 'Courses', href: '/courses' },
+  { label: 'Written Tests', href: '/tests' },
   { label: 'Results', href: '/results' },
   { label: 'Faculty', href: '/faculty' },
   { label: 'Gallery', href: '/gallery' },

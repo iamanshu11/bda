@@ -23,14 +23,14 @@ function toPublicUser(user: {
   name: string;
   email: string;
   isEmailVerified: boolean;
-  role: { name: RoleName };
+  role: { name: string };
 }) {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     isEmailVerified: user.isEmailVerified,
-    role: user.role.name,
+    role: user.role.name as RoleName,
   };
 }
 
@@ -139,7 +139,7 @@ export const authService = {
 
     const payload: JwtPayload = {
       userId: user.id,
-      role: user.role.name,
+      role: user.role.name as RoleName,
       permissions: user.role.permissions,
     };
     const tokens = await issueTokens(payload, meta);
@@ -155,7 +155,7 @@ export const authService = {
 
     const payload: JwtPayload = {
       userId: user.id,
-      role: user.role.name,
+      role: user.role.name as RoleName,
       permissions: user.role.permissions,
     };
     const tokens = await issueTokens(payload, meta);
@@ -234,7 +234,7 @@ export const authService = {
     await authRepository.revokeRefreshToken(stored.tokenHash);
     const payload: JwtPayload = {
       userId: user.id,
-      role: user.role.name,
+      role: user.role.name as RoleName,
       permissions: user.role.permissions,
     };
     return issueTokens(payload, meta);

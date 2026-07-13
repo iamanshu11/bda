@@ -11,6 +11,8 @@ import { apiRateLimiter } from '@/middleware/rateLimiter';
 import { requestLoggerMiddleware } from '@/middleware/requestLogger';
 import { notFoundHandler } from '@/middleware/notFound';
 import { errorHandler } from '@/middleware/errorHandler';
+import { ApiError } from '@/utils/ApiError';
+import { paymentService } from '@/services/payment.service';
 import { router as apiRouter } from '@/routes';
 
 /**
@@ -30,6 +32,24 @@ export function createApp(): Application {
     }),
   );
   app.use(compression());
+
+  // Razorpay webhook — MUST be registered with a RAW body parser BEFORE express.json(),
+  // otherwise the parsed body breaks HMAC signature verification. Public (no auth).
+  app.post(
+    `${env.API_PREFIX}/payments/webhook`,
+    express.raw({ type: '*/*' }),
+    async (req: Request, res: Response) => {
+      try {
+        const signature = req.header('x-razorpay-signature');
+        const result = await paymentService.handleWebhook(req.body as Buffer, signature);
+        res.status(HttpStatus.OK).json({ success: true, ...result });
+      } catch (err) {
+        const status = err instanceof ApiError ? err.statusCode : HttpStatus.INTERNAL_SERVER_ERROR;
+        res.status(status).json({ success: false, message: err instanceof Error ? err.message : 'Webhook error' });
+      }
+    },
+  );
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());

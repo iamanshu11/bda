@@ -131,3 +131,42 @@ export const announcementSchema = z.object({
   pinned: z.boolean().optional(),
   isPublished: z.boolean().optional(),
 });
+
+export const reviewUpdateSchema = z.object({
+  isApproved: z.boolean().optional(),
+  rating: z.coerce.number().int().min(1).max(5).optional(),
+  title: optionalString,
+  body: optionalString,
+});
+
+export const couponSchema = z.object({
+  code: z.string().min(3).max(30).transform((c) => c.trim().toUpperCase()),
+  type: z.enum(['PERCENTAGE', 'FIXED']),
+  value: z.coerce.number().int().positive(),
+  maxDiscount: z.coerce.number().int().positive().nullable().optional(),
+  minAmount: z.coerce.number().int().nonnegative().nullable().optional(),
+  expiryAt: z.coerce.date().nullable().optional(),
+  maxUses: z.coerce.number().int().positive().nullable().optional(),
+  perUserLimit: z.coerce.number().int().positive().optional(),
+  status: z.enum(['ACTIVE', 'DISABLED']).optional(),
+  courseId: optionalString.nullable(),
+});
+
+export const writtenTestSchema = z.object({
+  title: z.string().min(2),
+  slug: optionalString,
+  description: optionalString,
+  instructions: optionalString,
+  price: z.coerce.number().int().nonnegative().default(299),
+  durationMins: z.coerce.number().int().positive().nullable().optional(),
+  marksPerQuestion: z.coerce.number().positive().optional(),
+  passingMarks: z.coerce.number().nonnegative().nullable().optional(),
+  negativeMark: z.coerce.number().nonnegative().optional(),
+  shuffle: z.boolean().optional(),
+  availableFrom: z.coerce.date(),
+  availableTo: z.coerce.date(),
+  answersRevealAt: z.coerce.date().nullable().optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+  maxCheatingAttempts: z.coerce.number().int().positive().optional(),
+  offlineAutoSubmitMins: z.coerce.number().int().positive().nullable().optional(),
+});

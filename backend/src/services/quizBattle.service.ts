@@ -21,6 +21,25 @@ function liveLeaderboard(
     }));
 }
 
+type LeaderboardEntry = ReturnType<typeof liveLeaderboard>[number];
+
+/** Shape returned by `liveState` (explicit — the method self-references). */
+interface LiveBattleState {
+  id: string;
+  title: string;
+  status: string;
+  currentQuestionIndex: number;
+  totalQuestions: number;
+  timePerQuestion: number;
+  timeRemainingMs: number;
+  currentQuestion:
+    | { id: string; question: string; options: { A: string; B: string; C: string; D: string }; answered: boolean }
+    | null;
+  leaderboard: LeaderboardEntry[];
+  myParticipant: { score: number; rank: number | null; xpEarned: number; finished: boolean } | null;
+  winner: LeaderboardEntry | null;
+}
+
 export const quizBattleService = {
   async list(userId: string) {
     const battles = await prisma.quizBattle.findMany({
@@ -99,7 +118,7 @@ export const quizBattleService = {
   },
 
   /** Live battle state — poll this during LIVE battles. */
-  async liveState(userId: string, battleId: string) {
+  async liveState(userId: string, battleId: string): Promise<LiveBattleState> {
     const battle = await prisma.quizBattle.findUnique({
       where: { id: battleId },
       include: {

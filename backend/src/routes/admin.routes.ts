@@ -209,6 +209,70 @@ const resources: ResourceConfig[] = [
       filterableFields: ['isPublished'],
     },
   },
+  {
+    path: 'coupons',
+    model: prisma.coupon as unknown as PrismaDelegate,
+    options: {
+      label: 'Coupon',
+      createSchema: S.couponSchema,
+      updateSchema: S.couponSchema.partial(),
+      searchFields: ['code'],
+      defaultOrderBy: { createdAt: 'desc' },
+      filterableFields: ['status'],
+      include: { course: { select: { title: true } } },
+    },
+  },
+  {
+    path: 'payments',
+    model: prisma.payment as unknown as PrismaDelegate,
+    options: {
+      label: 'Payment',
+      searchFields: ['razorpayOrderId', 'razorpayPaymentId'],
+      defaultOrderBy: { createdAt: 'desc' },
+      filterableFields: ['status'],
+      include: {
+        user: { select: { name: true, email: true } },
+        course: { select: { title: true } },
+      },
+    },
+    actions: ['list', 'get'],
+  },
+  {
+    path: 'reviews',
+    model: prisma.courseReview as unknown as PrismaDelegate,
+    options: {
+      label: 'Review',
+      updateSchema: S.reviewUpdateSchema,
+      searchFields: ['title', 'body'],
+      defaultOrderBy: { createdAt: 'desc' },
+      filterableFields: ['isApproved'],
+      include: {
+        user: { select: { name: true } },
+        course: { select: { title: true } },
+      },
+    },
+    actions: ['list', 'get', 'update', 'remove'],
+  },
+  {
+    path: 'written-tests',
+    model: prisma.writtenTest as unknown as PrismaDelegate,
+    options: {
+      label: 'Written test',
+      createSchema: S.writtenTestSchema,
+      updateSchema: S.writtenTestSchema.partial(),
+      searchFields: ['title', 'slug'],
+      filterableFields: ['status'],
+      defaultOrderBy: { createdAt: 'desc' },
+      transform: async (data: Record<string, unknown>, id?: string) => {
+        withSlug(data);
+        if (data.status === 'PUBLISHED' && id) {
+          const { writtenTestService } = await import('@/services/writtenTest.service');
+          await writtenTestService.publishCheck(id);
+        }
+        return data;
+      },
+    },
+  },
 ];
 
 const router = Router();
@@ -218,6 +282,7 @@ router.use(authenticate, authorize(RoleName.ADMIN, RoleName.SUPER_ADMIN));
 
 // Dashboard overview stats
 router.get('/dashboard', asyncHandler(dashboardController.adminOverview));
+router.get('/analytics', asyncHandler(dashboardController.adminAnalytics));
 
 // Register CRUD for every resource
 for (const res of resources) {
@@ -238,5 +303,17 @@ for (const res of resources) {
   if (actions.includes('update')) router.patch(`${base}/:id`, asyncHandler(ctrl.update));
   if (actions.includes('remove')) router.delete(`${base}/:id`, asyncHandler(ctrl.remove));
 }
+
+// Written-test nested admin routes
+import { writtenTestController } from '@/controllers/writtenTest.controller';
+
+router.get('/written-tests/:id/questions', asyncHandler(writtenTestController.listQuestions));
+router.post('/written-tests/:id/questions', asyncHandler(writtenTestController.addQuestion));
+router.patch('/test-questions/:id', asyncHandler(writtenTestController.updateQuestion));
+router.delete('/test-questions/:id', asyncHandler(writtenTestController.deleteQuestion));
+router.get('/written-tests/:id/results', asyncHandler(writtenTestController.results));
+router.get('/exam-monitoring', asyncHandler(writtenTestController.monitoring));
+router.get('/exam-attempts/:id/violations', asyncHandler(writtenTestController.attemptViolations));
+router.post('/exam-attempts/:id/force-submit', asyncHandler(writtenTestController.forceSubmit));
 
 export { router as adminRoutes };

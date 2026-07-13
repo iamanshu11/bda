@@ -11,6 +11,7 @@ export const moduleCreateSchema = z.object({
   notes: optional,
   attachmentUrl: optional,
   estimatedDuration: optional,
+  isPreview: z.boolean().optional(),
 });
 
 export const moduleUpdateSchema = moduleCreateSchema.partial();

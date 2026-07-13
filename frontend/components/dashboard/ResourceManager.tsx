@@ -17,6 +17,7 @@ export interface FieldConfig {
   options?: { value: string; label: string }[];
   placeholder?: string;
   required?: boolean;
+  defaultValue?: string | number | boolean;
 }
 
 export interface ColumnConfig<T = Record<string, unknown>> {
@@ -91,7 +92,12 @@ export function ResourceManager({
 
   function openCreate() {
     setEditing(null);
-    setForm({});
+    const initial: Record<string, unknown> = {};
+    fields?.forEach((f) => {
+      if (f.defaultValue !== undefined) initial[f.name] = f.defaultValue;
+      else if (f.type === 'checkbox') initial[f.name] = false;
+    });
+    setForm(initial);
     setFormError(null);
     setModalOpen(true);
   }
@@ -214,7 +220,12 @@ export function ResourceManager({
 
       {/* Create / Edit modal */}
       {fields && (
-        <Modal open={modalOpen} onClose={closeModal} title={`${editing ? 'Edit' : 'New'} ${title.replace(/s$/, '')}`}>
+        <Modal
+          open={modalOpen}
+          onClose={closeModal}
+          title={`${editing ? 'Edit' : 'New'} ${title.replace(/s$/, '')}`}
+          size={fields.length > 6 ? 'lg' : 'md'}
+        >
           <form onSubmit={submit} className="space-y-4">
             {fields.map((f) => (
               <div key={f.name}>
@@ -261,6 +272,7 @@ export function ResourceManager({
                     type={f.type === 'number' ? 'number' : 'text'}
                     placeholder={f.placeholder}
                     className={inputCls}
+                    step={f.type === 'number' ? 'any' : undefined}
                     value={String(form[f.name] ?? '')}
                     onChange={(e) =>
                       setForm((s) => ({

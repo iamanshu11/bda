@@ -33,6 +33,40 @@ Paid courses are purchased through **Razorpay**; free courses (fees `0`/empty) e
    ```
 4. Restart the backend. The publishable key id is returned to the browser by the order endpoint — the frontend needs no extra env var.
 
+### Reviews, wishlist & course preview
+
+- **Reviews & Ratings:** students who have **completed** a course can leave a star rating + review on the course page; reviews appear publicly only after an admin approves them at `/admin/reviews`. Course pages show the average rating + count.
+- **Wishlist:** a heart on every course card + detail page saves a course to **Saved Missions** (`/dashboard/saved`), from which students can enroll later.
+- **Course preview:** admins mark any module as a **free preview** (checkbox in the module editor); those modules (video + notes + a sample quiz, no answers) render on the public course page before purchase.
+
+> Migration for these: `cd backend && npm run prisma:migrate -- --name reviews_wishlist_preview && npm run db:seed` (adds `course_reviews`, `wishlists`, and the module `isPreview` flag; seeds the CDS course's first operation as a preview).
+
+### Coupons, retry & admin analytics
+
+- **Coupons:** admins create them at `/admin/coupons` (percentage or fixed, with expiry, usage caps, per-user limit, min price, course scope). Students apply a code on the enroll screen — the discount is **re-validated + applied server-side** on the Razorpay order, and the redemption is recorded only once the payment is captured. Seeded samples: `WELCOME50`, `ARMY20`, `BDA2026`.
+- **Retry payment:** students see their **Purchases** (`/dashboard/purchases`) with status; failed/incomplete payments have a one-click **Retry** (a fresh order supersedes the stale one — no double charge or double enroll).
+- **Admin analytics:** `/admin/analytics` shows revenue (today/month), students, active users, new registrations, course sales, top courses, refunds and pending payments. Admins can also browse all payments at `/admin/payments`.
+
+> After pulling these changes, run the migration to add the new tables/columns (coupons, coupon_redemptions, payment discount/refund fields, `REFUNDED` status):
+> ```bash
+> cd backend && npm run prisma:migrate -- --name coupons_analytics && npm run db:seed
+> ```
+
+### Webhook (important — enrolls the student even if the browser closes)
+
+Enrollment must not depend only on the browser calling `/verify`. Configure a Razorpay webhook so payments always enroll:
+
+1. Razorpay Dashboard → **Settings → Webhooks → Add New Webhook**.
+2. **URL:** `https://YOUR_BACKEND/api/v1/payments/webhook` (use an ngrok/tunnel URL while testing locally).
+3. **Active events:** `payment.captured` (and optionally `order.paid`).
+4. Set a **secret** and put the same value in `backend/.env`:
+
+   ```
+   RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
+   ```
+
+The endpoint verifies the raw-body HMAC signature, marks the payment `PAID`, and enrolls the buyer — idempotently (safe to receive the same event twice). It's mounted with a raw body parser **before** JSON parsing, and is unauthenticated by design (Razorpay-signed).
+
 ### Test the payment (Razorpay test mode)
 
 Use any course that has a fee (the seed's CDS/NDA courses do).

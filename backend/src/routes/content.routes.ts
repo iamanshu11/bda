@@ -11,6 +11,7 @@ import { asyncHandler } from '@/utils/asyncHandler';
 
 export const coursesRoutes = Router();
 coursesRoutes.get('/', asyncHandler(contentController.listCourses));
+coursesRoutes.get('/:slug/reviews', asyncHandler(contentController.courseReviews));
 coursesRoutes.get('/:slug', asyncHandler(contentController.getCourse));
 
 export const categoriesRoutes = Router();

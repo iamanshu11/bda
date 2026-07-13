@@ -41,18 +41,24 @@ export function CourseSelector({ initialCourse }: { initialCourse?: string }) {
   const [error, setError] = useState<string | null>(null);
   const autoTried = useRef(false);
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [coupon, setCoupon] = useState<{ code: string; discount: number; finalAmount: number } | null>(null);
+
   const { data: courses, isLoading, isError } = useQuery({
     queryKey: ['public-courses'],
     queryFn: async () => (await api.get('/courses', { params: { limit: 50 } })).data.data as Course[],
   });
 
   const enroll = useCallback(
-    async (courseId: string) => {
+    async (courseId: string, couponCodeArg?: string) => {
       setError(null);
       setEnrolling(true);
       try {
         // Create an order — the backend enrolls free courses directly.
-        const { data } = await api.post('/students/payments/order', { courseId });
+        const { data } = await api.post('/students/payments/order', { courseId, couponCode: couponCodeArg });
         const order = data.data as OrderResponse;
 
         if (order.free) {
@@ -94,6 +100,29 @@ export function CourseSelector({ initialCourse }: { initialCourse?: string }) {
     }
   }, [status, initialCourse, enroll]);
 
+  // Reset any applied coupon when the selected course changes.
+  useEffect(() => {
+    setCoupon(null);
+    setCouponError(null);
+    setCouponCode('');
+  }, [selected]);
+
+  async function applyCoupon() {
+    if (!selected || !couponCode.trim()) return;
+    setApplyingCoupon(true);
+    setCouponError(null);
+    try {
+      const res = await api.post('/students/coupons/validate', { code: couponCode.trim(), courseId: selected });
+      const info = res.data.data as { code: string; discount: number; finalAmount: number };
+      setCoupon(info);
+    } catch (err) {
+      setCoupon(null);
+      setCouponError(getApiErrorMessage(err));
+    } finally {
+      setApplyingCoupon(false);
+    }
+  }
+
   async function handleEnroll() {
     if (!selected) return;
     // Not signed in → send to signup, remembering the chosen course.
@@ -101,7 +130,7 @@ export function CourseSelector({ initialCourse }: { initialCourse?: string }) {
       router.push(`/signup?redirect=${encodeURIComponent(`/enroll?course=${selected}`)}`);
       return;
     }
-    await enroll(selected);
+    await enroll(selected, coupon?.code);
   }
 
   return (
@@ -179,17 +208,54 @@ export function CourseSelector({ initialCourse }: { initialCourse?: string }) {
 
             {error && <p className="mt-6 text-center text-sm text-red-600">{error}</p>}
 
-            <div className="mt-10 flex flex-col items-center gap-3">
-              {(() => {
-                const selCourse = courses?.find((c) => c.id === selected);
-                const fee = selCourse?.fees ? Number(selCourse.fees) : 0;
-                const label =
-                  status !== 'authenticated'
-                    ? 'Continue to sign up'
-                    : fee > 0
-                      ? `Pay ₹${fee.toLocaleString('en-IN')} & Enroll`
-                      : 'Enroll for Free';
-                return (
+            {(() => {
+              const selCourse = courses?.find((c) => c.id === selected);
+              const fee = selCourse?.fees ? Number(selCourse.fees) : 0;
+              const showCoupon = status === 'authenticated' && fee > 0;
+              const payable = coupon ? coupon.finalAmount : fee;
+              const label =
+                status !== 'authenticated'
+                  ? 'Continue to sign up'
+                  : fee > 0
+                    ? `Pay ₹${payable.toLocaleString('en-IN')} & Enroll`
+                    : 'Enroll for Free';
+              return (
+                <div className="mt-10 flex flex-col items-center gap-3">
+                  {showCoupon && (
+                    <div className="w-full max-w-sm">
+                      <div className="flex gap-2">
+                        <input
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="Coupon code"
+                          className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm uppercase text-foreground focus:outline-none focus:ring-2 focus:ring-navy-500"
+                        />
+                        <Button variant="outline" size="md" onClick={applyCoupon} disabled={applyingCoupon || !couponCode.trim()}>
+                          {applyingCoupon ? <Loader2 className="animate-spin" size={16} /> : 'Apply'}
+                        </Button>
+                      </div>
+                      {couponError && <p className="mt-1 text-xs text-red-600">{couponError}</p>}
+                      {coupon && (
+                        <div className="mt-2 flex items-center justify-between rounded-md bg-green-50 px-3 py-2 text-sm dark:bg-green-950/30">
+                          <span className="font-medium text-green-700 dark:text-green-300">
+                            {coupon.code} applied — you save ₹{coupon.discount.toLocaleString('en-IN')}
+                          </span>
+                          <button
+                            onClick={() => { setCoupon(null); setCouponCode(''); }}
+                            className="text-xs text-muted hover:text-red-600"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                      {coupon && (
+                        <p className="mt-2 text-center text-sm text-muted">
+                          <span className="line-through">₹{fee.toLocaleString('en-IN')}</span>{' '}
+                          <span className="font-bold text-foreground">₹{payable.toLocaleString('en-IN')}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <Button size="lg" onClick={handleEnroll} disabled={!selected || enrolling}>
                     {enrolling ? (
                       <><Loader2 className="animate-spin" size={18} /> Processing…</>
@@ -197,8 +263,11 @@ export function CourseSelector({ initialCourse }: { initialCourse?: string }) {
                       <>{label} <ArrowRight size={18} /></>
                     )}
                   </Button>
-                );
-              })()}
+                </div>
+              );
+            })()}
+
+            <div className="mt-3 flex flex-col items-center gap-3">
               {status !== 'authenticated' && (
                 <p className="text-sm text-muted">
                   Already have an account?{' '}

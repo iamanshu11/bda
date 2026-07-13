@@ -25,6 +25,7 @@ export const moduleService = {
       notes?: string;
       attachmentUrl?: string;
       estimatedDuration?: string;
+      isPreview?: boolean;
     },
   ) {
     const course = await prisma.course.findUnique({ where: { id: courseId } });

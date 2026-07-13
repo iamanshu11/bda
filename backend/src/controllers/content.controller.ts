@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { contentRepository } from '@/repositories/content.repository';
+import { reviewService } from '@/services/review.service';
 import { emailService } from '@/services/email.service';
 import { emailTemplates } from '@/emails/templates';
 import { sendSuccess, buildPaginationMeta } from '@/utils/ApiResponse';
@@ -18,7 +19,21 @@ export const contentController = {
   async getCourse(req: Request, res: Response) {
     const course = await contentRepository.getCourseBySlug(req.params.slug);
     if (!course) throw ApiError.notFound('Course not found.');
-    return sendSuccess(res, course, 'Course fetched.');
+    // Expose preview operations under a clear key + attach the rating summary.
+    const { modules, ...rest } = course as typeof course & { modules: unknown[] };
+    const ratings = await reviewService.publicForCourse(course.id);
+    return sendSuccess(
+      res,
+      { ...rest, previewModules: modules, rating: { average: ratings.average, count: ratings.count } },
+      'Course fetched.',
+    );
+  },
+
+  async courseReviews(req: Request, res: Response) {
+    const course = await contentRepository.getCourseBySlug(req.params.slug);
+    if (!course) throw ApiError.notFound('Course not found.');
+    const data = await reviewService.publicForCourse(course.id);
+    return sendSuccess(res, data, 'Reviews fetched.');
   },
 
   async listCategories(_req: Request, res: Response) {

@@ -22,7 +22,43 @@ export const contentRepository = {
   getCourseBySlug(slug: string) {
     return prisma.course.findFirst({
       where: { slug, isPublished: true },
-      include: { category: true, faculties: true, faqs: true, demoVideos: true },
+      include: {
+        category: true,
+        faculties: true,
+        faqs: true,
+        demoVideos: true,
+        // Free preview operations (no quiz answers exposed).
+        modules: {
+          where: { isPreview: true },
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            moduleNumber: true,
+            title: true,
+            description: true,
+            youtubeUrl: true,
+            youtubeIframe: true,
+            notes: true,
+            estimatedDuration: true,
+            quiz: {
+              select: {
+                passingMarks: true,
+                questions: {
+                  orderBy: { order: 'asc' },
+                  select: { id: true, question: true, optionA: true, optionB: true, optionC: true, optionD: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  listApprovedReviews(courseId: string) {
+    return prisma.courseReview.findMany({
+      where: { courseId, isApproved: true },
+      orderBy: { createdAt: 'desc' },
     });
   },
 

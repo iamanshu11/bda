@@ -22,6 +22,7 @@ interface ModuleRow {
   youtubeIframe?: string | null;
   notes?: string | null;
   attachmentUrl?: string | null;
+  isPreview?: boolean;
   quiz?: { _count?: { questions: number } } | null;
 }
 
@@ -36,6 +37,7 @@ const emptyForm = {
   youtubeIframe: '',
   notes: '',
   attachmentUrl: '',
+  isPreview: false,
 };
 
 export function ModuleManager({ courseId }: { courseId: string }) {
@@ -103,6 +105,7 @@ export function ModuleManager({ courseId }: { courseId: string }) {
       youtubeIframe: m.youtubeIframe ?? '',
       notes: m.notes ?? '',
       attachmentUrl: m.attachmentUrl ?? '',
+      isPreview: Boolean(m.isPreview),
     });
     setError(null);
     setModalOpen(true);
@@ -195,6 +198,15 @@ export function ModuleManager({ courseId }: { courseId: string }) {
             <label className="mb-1 block text-sm font-medium text-foreground">PDF notes (optional)</label>
             <FileUploadField value={form.attachmentUrl} onChange={(url) => setForm((s) => ({ ...s, attachmentUrl: url }))} />
           </div>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={form.isPreview}
+              onChange={(e) => setForm((s) => ({ ...s, isPreview: e.target.checked }))}
+            />
+            Free preview (visible before purchase)
+          </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>

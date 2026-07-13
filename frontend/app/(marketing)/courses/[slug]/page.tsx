@@ -9,6 +9,10 @@ import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { JsonLd } from '@/components/JsonLd';
+import { StarRating } from '@/components/ui/StarRating';
+import { CoursePreview } from '@/components/courses/CoursePreview';
+import { CourseReviews } from '@/components/courses/CourseReviews';
+import { WishlistButton } from '@/components/courses/WishlistButton';
 import { siteConfig } from '@/constants/site';
 import type { ApiCourse } from '@/types/api';
 
@@ -91,6 +95,10 @@ export default async function CourseDetailPage({ params }: PageProps) {
               </div>
             )}
 
+            {course.previewModules && course.previewModules.length > 0 && (
+              <CoursePreview modules={course.previewModules} />
+            )}
+
             {curriculum.length > 0 && (
               <div>
                 <h2 className="font-heading text-xl font-bold text-foreground">Curriculum</h2>
@@ -158,15 +166,26 @@ export default async function CourseDetailPage({ params }: PageProps) {
                 </div>
               </div>
             )}
+
+            <CourseReviews slug={course.slug} courseId={course.id} />
           </div>
 
           {/* Sticky enroll card */}
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="rounded-2xl border border-border bg-surface p-6">
-              {course.badge && (
-                <span className="inline-block rounded-md bg-navy-50 px-2.5 py-1 text-xs font-bold text-navy-700 dark:bg-navy-800 dark:text-navy-200">
-                  {course.badge}
-                </span>
+              <div className="flex items-center justify-between">
+                {course.badge ? (
+                  <span className="inline-block rounded-md bg-navy-50 px-2.5 py-1 text-xs font-bold text-navy-700 dark:bg-navy-800 dark:text-navy-200">
+                    {course.badge}
+                  </span>
+                ) : <span />}
+                <WishlistButton courseId={course.id} />
+              </div>
+              {course.rating && course.rating.count > 0 && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-muted">
+                  <StarRating value={course.rating.average} size={15} />
+                  <span>{course.rating.average} ({course.rating.count})</span>
+                </div>
               )}
               <ul className="mt-4 space-y-3 text-sm">
                 {course.fees ? (

@@ -109,23 +109,23 @@ export function QuizManager({ moduleId }: { moduleId: string }) {
 
   return (
     <div className="mt-3 rounded-lg border border-border bg-background p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted">Pass mark:</span>
           <input
             type="number"
             value={passing}
             min={1}
             onChange={(e) => setPassing(e.target.value === '' ? '' : Number(e.target.value))}
-            className="w-16 rounded-md border border-border bg-background px-2 py-1 text-sm"
+            className="min-h-10 w-16 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
           />
           <span className="text-muted">/ {questions.length} questions</span>
           <Button size="sm" variant="outline" onClick={() => saveConfig.mutate()} disabled={saveConfig.isPending}>
-            {saveConfig.isPending ? <Loader2 className="animate-spin" size={14} /> : 'Save'}
+            {saveConfig.isPending ? <Loader2 className="shrink-0 animate-spin" size={14} /> : 'Save'}
           </Button>
         </div>
-        <Button size="sm" onClick={openAdd}>
-          <Plus size={15} /> Add question
+        <Button size="sm" className="w-full sm:w-auto" onClick={openAdd}>
+          <Plus size={15} className="shrink-0" /> Add question
         </Button>
       </div>
 

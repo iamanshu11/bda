@@ -113,15 +113,15 @@ export function ModuleManager({ courseId }: { courseId: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <Link href="/admin/courses" className="mb-1 inline-flex items-center gap-1 text-sm text-muted hover:text-foreground">
-            <ArrowLeft size={14} /> Back to courses
+            <ArrowLeft size={14} className="shrink-0" /> Back to courses
           </Link>
-          <h2 className="font-heading text-2xl font-bold text-foreground">Course Modules</h2>
+          <h2 className="truncate font-heading text-xl font-bold text-foreground sm:text-2xl">Course Modules</h2>
         </div>
-        <Button onClick={openAdd}>
-          <Plus size={16} /> Add module
+        <Button onClick={openAdd} size="sm" className="w-full shrink-0 sm:w-auto">
+          <Plus size={16} className="shrink-0" /> Add module
         </Button>
       </div>
 

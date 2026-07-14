@@ -70,10 +70,11 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-alt"
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-alt focus:outline-none focus-visible:ring-2 focus-visible:ring-navy-500"
         aria-label="Notifications"
+        aria-expanded={open}
       >
-        <Bell size={19} />
+        <Bell size={19} className="shrink-0" />
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rust-500 px-1 text-[10px] font-bold text-white">
             {unread > 9 ? '9+' : unread}
@@ -82,12 +83,16 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-            <span className="text-sm font-semibold text-foreground">Notifications</span>
+        <div className="absolute right-0 top-11 z-50 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+            <span className="truncate text-sm font-semibold text-foreground">Notifications</span>
             {unread > 0 && (
-              <button onClick={() => markAll.mutate()} className="inline-flex items-center gap-1 text-xs font-medium text-navy-600 hover:underline dark:text-navy-200">
-                <Check size={12} /> Mark all read
+              <button
+                type="button"
+                onClick={() => markAll.mutate()}
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-navy-600 hover:underline dark:text-navy-200"
+              >
+                <Check size={12} className="shrink-0" /> Mark all read
               </button>
             )}
           </div>

@@ -7,12 +7,14 @@ export const siteConfig = {
   name: 'Bokaro Defence Academy',
   shortName: 'BDA',
   url: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
-  tagline: 'Molding the Brave Hearts',
+  tagline: 'Dream. Discipline. Defend',
   description:
-    "India's most trusted and affordable defence academy for NDA, CDS, AFCAT and Agniveer preparation. Expert faculty, mock tests, video lectures and proven results.",
+    'Dream. Discipline. Defend — Bokaro Defence Academy, India\'s trusted coaching for NDA, CDS, AFCAT and Agniveer. Expert faculty, mock tests, video lectures and proven results.',
   locale: 'en_IN',
   keywords: [
     'Bokaro Defence Academy',
+    'Dream Discipline Defend',
+    'Dream. Discipline. Defend',
     'NDA coaching',
     'CDS coaching',
     'AFCAT preparation',

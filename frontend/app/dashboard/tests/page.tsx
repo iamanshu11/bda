@@ -98,17 +98,17 @@ export default function MyTestsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     {!status || status === 'IN_PROGRESS' ? (
-                      <Button href={`/dashboard/tests/${t.id}/attempt`} size="sm">
+                      <Button href={`/dashboard/tests/${t.id}/attempt`} size="sm" className="w-full sm:w-auto">
                         {status === 'IN_PROGRESS' ? 'Resume exam' : 'Start exam'}
                       </Button>
                     ) : (
-                      <Button href={`/dashboard/tests/${t.id}/result`} size="sm">
+                      <Button href={`/dashboard/tests/${t.id}/result`} size="sm" className="w-full sm:w-auto">
                         View result
                       </Button>
                     )}
-                    <Button href={`/tests/${t.slug}`} variant="outline" size="sm">
+                    <Button href={`/tests/${t.slug}`} variant="outline" size="sm" className="w-full sm:w-auto">
                       Details
                     </Button>
                   </div>

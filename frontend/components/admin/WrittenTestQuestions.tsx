@@ -86,26 +86,28 @@ export function WrittenTestQuestions({ testId, onClose }: { testId: string; onCl
 
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h3 className="font-heading text-lg font-bold text-foreground">Test questions</h3>
           <p className="mt-1 text-xs text-muted">
-            Default: +{defaultMarks} correct · −{negativeMark} wrong (from test settings; overridable per question)
+            Default: +{defaultMarks} correct · −{negativeMark} wrong (from test settings; overridable per
+            question)
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <Button
             size="sm"
+            className="w-full sm:w-auto"
             onClick={() => {
               setEditingId(null);
               setForm(emptyForm(defaultMarks));
               setModalOpen(true);
             }}
           >
-            <Plus size={16} /> Add
+            <Plus size={16} className="shrink-0" /> Add
           </Button>
-          <Button size="sm" variant="outline" onClick={onClose}>
-            <X size={16} /> Close
+          <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={onClose}>
+            <X size={16} className="shrink-0" /> Close
           </Button>
         </div>
       </div>

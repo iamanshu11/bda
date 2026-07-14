@@ -130,18 +130,20 @@ export function ResourceManager({
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-2xl font-bold text-foreground">{title}</h2>
+    <div className="min-w-0 space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <h2 className="min-w-0 truncate font-heading text-xl font-bold text-foreground sm:text-2xl">
+          {title}
+        </h2>
         {fields && canCreate && (
-          <Button onClick={openCreate} size="sm">
-            <Plus size={16} /> New
+          <Button onClick={openCreate} size="sm" className="w-full shrink-0 sm:w-auto">
+            <Plus size={16} className="shrink-0" /> New
           </Button>
         )}
       </div>
 
-      <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+      <div className="relative w-full max-w-sm">
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           value={search}
           onChange={(e) => {
@@ -149,7 +151,7 @@ export function ResourceManager({
             setSearch(e.target.value);
           }}
           placeholder="Search…"
-          className={cn(inputCls, 'pl-9')}
+          className={cn(inputCls, 'min-h-10 pl-9')}
         />
       </div>
 
@@ -209,11 +211,29 @@ export function ResourceManager({
 
       {/* Pagination */}
       {data && data.meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted">Page {page} of {data.meta.totalPages}</span>
+        <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted">
+            Page {page} of {data.meta.totalPages}
+          </span>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
-            <Button size="sm" variant="outline" disabled={page >= data.meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Prev
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              disabled={page >= data.meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
           </div>
         </div>
       )}
@@ -285,10 +305,18 @@ export function ResourceManager({
               </div>
             ))}
             {formError && <p className="text-sm text-red-600">{formError}</p>}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="ghost" onClick={closeModal}>Cancel</Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? <><Loader2 className="animate-spin" size={16} /> Saving…</> : 'Save'}
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
+              <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button type="submit" className="w-full sm:w-auto" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? (
+                  <>
+                    <Loader2 className="shrink-0 animate-spin" size={16} /> Saving…
+                  </>
+                ) : (
+                  'Save'
+                )}
               </Button>
             </div>
           </form>

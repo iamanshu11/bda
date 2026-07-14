@@ -15,7 +15,8 @@ import {
 export const metadata = buildMetadata({
   path: '/',
   description:
-    "Bokaro Defence Academy — India's most trusted & affordable academy for NDA, CDS, AFCAT & Agniveer. Expert faculty, 24,000+ mock tests, 14,000+ video lectures and proven results.",
+    'Dream. Discipline. Defend — Bokaro Defence Academy, India\'s most trusted & affordable academy for NDA, CDS, AFCAT & Agniveer. Expert faculty, 24,000+ mock tests, 14,000+ video lectures and proven results.',
+  keywords: ['Dream. Discipline. Defend', 'Dream Discipline Defend', 'Molding the Brave Hearts'],
 });
 
 export default function HomePage() {

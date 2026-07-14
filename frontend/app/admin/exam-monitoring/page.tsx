@@ -56,17 +56,18 @@ export default function ExamMonitoringPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 font-heading text-2xl font-bold text-foreground">
-            <ShieldAlert className="text-rust-500" /> Exam Monitoring
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 font-heading text-xl font-bold text-foreground sm:text-2xl">
+            <ShieldAlert className="shrink-0 text-rust-500" />
+            <span className="truncate">Exam Monitoring</span>
           </h1>
           <p className="mt-1 text-sm text-muted">Live attempts refresh every 5 seconds.</p>
         </div>
-        <label className="text-sm">
+        <label className="w-full text-sm sm:w-auto sm:min-w-[14rem]">
           <span className="mb-1 block text-muted">Filter by test</span>
           <select
-            className="rounded-md border border-border bg-background px-3 py-2"
+            className="min-h-10 w-full rounded-md border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-500"
             value={testId}
             onChange={(e) => setTestId(e.target.value)}
           >
@@ -128,6 +129,7 @@ export default function ExamMonitoringPage() {
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="w-full sm:w-auto"
                   disabled={force.isPending}
                   onClick={() => force.mutate(a.id)}
                 >

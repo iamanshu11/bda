@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { AuthProvider } from '@/store/auth';
+import { SiteIntro } from '@/components/layout/SiteIntro';
 
 /**
- * App-wide client providers: theme (dark/light) + React Query.
+ * App-wide client providers: theme (dark/light) + React Query + site intro.
  * QueryClient is created once per browser session via useState.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -22,7 +23,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SiteIntro />
+          {children}
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

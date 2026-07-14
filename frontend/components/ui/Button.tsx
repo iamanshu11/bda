@@ -5,19 +5,21 @@ type Variant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';
 
 const base =
-  'inline-flex items-center justify-center gap-2 font-semibold tracking-wide uppercase transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-navy-500 disabled:opacity-60 disabled:pointer-events-none';
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold tracking-wide uppercase transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-navy-500 disabled:opacity-60 disabled:pointer-events-none [&_svg]:shrink-0';
 
 const variants: Record<Variant, string> = {
   primary: 'bg-rust-500 text-white hover:bg-rust-600 shadow-sm hover:shadow-md',
   secondary: 'bg-navy-700 text-white hover:bg-navy-800 shadow-sm hover:shadow-md',
-  outline: 'border-2 border-navy-600 text-navy-600 hover:bg-navy-600 hover:text-white dark:border-navy-300 dark:text-navy-100',
+  outline:
+    'border-2 border-navy-600 text-navy-600 hover:bg-navy-600 hover:text-white dark:border-navy-300 dark:text-navy-100',
   ghost: 'text-foreground hover:bg-surface-alt',
 };
 
+/** Tap targets stay ≥40px on mobile; icons+labels stay vertically centered. */
 const sizes: Record<Size, string> = {
-  sm: 'h-9 px-4 text-xs rounded-md',
-  md: 'h-11 px-6 text-sm rounded-md',
-  lg: 'h-14 px-8 text-base rounded-md',
+  sm: 'min-h-10 h-10 px-3.5 text-xs rounded-md sm:h-9 sm:min-h-9 sm:px-4',
+  md: 'min-h-11 h-11 px-5 text-sm rounded-md sm:px-6',
+  lg: 'min-h-12 h-12 px-6 text-sm rounded-md sm:h-14 sm:min-h-14 sm:px-8 sm:text-base',
 };
 
 interface CommonProps {

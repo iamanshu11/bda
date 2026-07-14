@@ -26,12 +26,12 @@ import type {
  */
 
 export const heroContent = {
+  tagline: 'Dream. Discipline. Defend',
   title: 'Molding the Brave Hearts',
   subtitle: "India's most trusted academy for NDA, CDS, and AFCAT excellence.",
   ctaLabel: 'Get Started',
   ctaHref: '/courses',
-  backgroundImage:
-    'https://images.unsplash.com/photo-1550439062-609e1531270e?auto=format&fit=crop&w=1920&q=80',
+  backgroundImage: '/img/hero-bg.png',
 };
 
 export const stats: Stat[] = [
@@ -52,8 +52,7 @@ export const aboutContent = {
   body: 'Unlock your potential by signing up with Bokaro Defence Academy - The most affordable learning solution for future officers.',
   ctaLabel: 'Get Started',
   ctaHref: '/about',
-  image:
-    'https://images.unsplash.com/photo-1627556704290-2b1f5853ff78?auto=format&fit=crop&w=900&q=80',
+  image: '/img/trust.jpeg',
   chips: [
     { side: 'left', text: 'Sir, What is BDA?' },
     {

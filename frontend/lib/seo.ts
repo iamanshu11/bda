@@ -108,6 +108,7 @@ export function organizationJsonLd() {
     '@type': 'EducationalOrganization',
     name: siteConfig.name,
     alternateName: siteConfig.shortName,
+    slogan: siteConfig.tagline,
     url: siteConfig.url,
     logo: new URL('/logo.png', siteUrl).toString(),
     description: siteConfig.description,

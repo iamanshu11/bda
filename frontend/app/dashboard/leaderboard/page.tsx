@@ -96,8 +96,8 @@ export default function LeaderboardPage() {
       ) : isError || !data ? (
         <p className="text-muted">Could not load leaderboard.</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-surface-alt text-left text-xs uppercase text-muted">
               <tr>
                 <th className="px-4 py-3">Rank</th>

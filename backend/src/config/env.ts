@@ -12,8 +12,14 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   API_PREFIX: z.string().default('/api/v1'),
   CLIENT_URL: z.string().url().default('http://localhost:3000'),
+  // Comma-separated allowlist of additional origins (apex + www + previews).
+  // CLIENT_URL is always included. Example: "https://bda.com,https://www.bda.com"
+  CLIENT_URLS: z.string().default(''),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+
+  // Optional shared store for rate limiting (falls back to in-memory when unset).
+  REDIS_URL: z.string().default(''),
 
   JWT_ACCESS_SECRET: z.string().min(10),
   JWT_REFRESH_SECRET: z.string().min(10),

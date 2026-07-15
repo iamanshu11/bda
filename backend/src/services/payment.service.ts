@@ -6,6 +6,10 @@ import { ApiError } from '@/utils/ApiError';
 import { studentService } from '@/services/student.service';
 import { couponService } from '@/services/coupon.service';
 import { writtenTestService } from '@/services/writtenTest.service';
+import { notificationService } from '@/services/notification.service';
+import { emailService } from '@/services/email.service';
+import { emailTemplates } from '@/emails/templates';
+import { verifyRazorpaySignature, verifyWebhookSignature } from '@/utils/paymentSignature';
 
 /** Normalize Razorpay SDK errors (plain objects, not Error instances). */
 function throwRazorpayError(err: unknown): never {
@@ -176,12 +180,14 @@ export const paymentService = {
       return { enrolled: true, courseId: payment.courseId, testId: payment.testId };
     }
 
-    const expected = crypto
-      .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
-      .update(`${input.razorpayOrderId}|${input.razorpayPaymentId}`)
-      .digest('hex');
+    const signatureValid = verifyRazorpaySignature(
+      input.razorpayOrderId,
+      input.razorpayPaymentId,
+      input.razorpaySignature,
+      env.RAZORPAY_KEY_SECRET,
+    );
 
-    if (expected !== input.razorpaySignature) {
+    if (!signatureValid) {
       await prisma.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } });
       throw ApiError.badRequest('Payment verification failed.');
     }
@@ -194,6 +200,15 @@ export const paymentService = {
     return this.markPaidAndEnroll(payment, input.razorpayPaymentId);
   },
 
+  /**
+   * Atomically mark a payment PAID, redeem any coupon, and enroll the buyer.
+   * All DB writes happen inside a single interactive transaction, so we can
+   * never end up "paid but not enrolled" (or coupon counted without enrollment).
+   * The whole method is idempotent: re-running it (duplicate webhook, retry,
+   * or a reconciliation job) will not double-enroll or double-count a coupon.
+   * User-facing side effects (notification + email) run AFTER commit so a slow
+   * mailer can never roll back a successful payment.
+   */
   async markPaidAndEnroll(
     payment: {
       id: string;
@@ -204,45 +219,103 @@ export const paymentService = {
     },
     paymentId?: string,
   ) {
-    const wasPaid = payment.status === 'PAID';
-    if (!wasPaid) {
-      await prisma.payment.update({
+    const outcome = await prisma.$transaction(async (tx) => {
+      const pay = await tx.payment.findUnique({
         where: { id: payment.id },
-        data: { status: 'PAID', ...(paymentId ? { razorpayPaymentId: paymentId } : {}) },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          couponId: true,
+          discountApplied: true,
+          testId: true,
+          courseId: true,
+        },
       });
-      const full = await prisma.payment.findUnique({
-        where: { id: payment.id },
-        select: { couponId: true, discountApplied: true, testId: true, courseId: true },
-      });
-      if (full?.couponId) {
-        await couponService.redeem(full.couponId, payment.userId, payment.id, full.discountApplied);
+      if (!pay) throw ApiError.notFound('Payment not found.');
+
+      // 1) Mark PAID + redeem coupon (only on the first successful pass).
+      if (pay.status !== 'PAID') {
+        await tx.payment.update({
+          where: { id: pay.id },
+          data: { status: 'PAID', ...(paymentId ? { razorpayPaymentId: paymentId } : {}) },
+        });
+        if (pay.couponId) {
+          const already = await tx.couponRedemption.findUnique({ where: { paymentId: pay.id } });
+          if (!already) {
+            await tx.couponRedemption.create({
+              data: {
+                couponId: pay.couponId,
+                userId: pay.userId,
+                paymentId: pay.id,
+                discountApplied: pay.discountApplied,
+              },
+            });
+            await tx.coupon.update({
+              where: { id: pay.couponId },
+              data: { usedCount: { increment: 1 } },
+            });
+          }
+        }
       }
-      payment = {
-        ...payment,
-        testId: full?.testId ?? payment.testId,
-        courseId: full?.courseId ?? payment.courseId,
-      };
+
+      // 2) Enroll (idempotent). Written test takes precedence when both set.
+      if (pay.testId) {
+        await tx.writtenTestEnrollment.upsert({
+          where: { userId_testId: { userId: pay.userId, testId: pay.testId } },
+          update: { paymentId: pay.id },
+          create: { userId: pay.userId, testId: pay.testId, paymentId: pay.id },
+        });
+        return { userId: pay.userId, testId: pay.testId, courseId: null as string | null, newCourse: false, courseTitle: '' };
+      }
+
+      if (pay.courseId) {
+        const existing = await tx.enrollment.findUnique({
+          where: { userId_courseId: { userId: pay.userId, courseId: pay.courseId } },
+        });
+        let newCourse = false;
+        if (!existing) {
+          await tx.enrollment.create({
+            data: { userId: pay.userId, courseId: pay.courseId, status: 'ACTIVE' },
+          });
+          newCourse = true;
+        }
+        const course = await tx.course.findUnique({
+          where: { id: pay.courseId },
+          select: { title: true },
+        });
+        return {
+          userId: pay.userId,
+          testId: null as string | null,
+          courseId: pay.courseId,
+          newCourse,
+          courseTitle: course?.title ?? '',
+        };
+      }
+
+      throw ApiError.internal('Payment has no course or test target.');
+    });
+
+    // Post-commit side effects (safe to fail without affecting the payment).
+    if (outcome.newCourse && outcome.courseId) {
+      notificationService.emit(
+        outcome.userId,
+        'Enrolled successfully',
+        `You are now enrolled in ${outcome.courseTitle}. Start learning!`,
+      );
+      const user = await prisma.user.findUnique({ where: { id: outcome.userId } });
+      if (user) {
+        void emailService
+          .send(
+            user.email,
+            'Enrollment confirmed — Bokaro Defence Academy',
+            emailTemplates.enrollmentConfirmation(user.name, outcome.courseTitle),
+          )
+          .catch(() => undefined);
+      }
     }
 
-    if (payment.testId) {
-      try {
-        await writtenTestService.enroll(payment.userId, payment.testId, payment.id);
-      } catch {
-        /* already enrolled */
-      }
-      return { enrolled: true, testId: payment.testId, courseId: null as string | null };
-    }
-
-    if (payment.courseId) {
-      try {
-        await studentService.enroll(payment.userId, payment.courseId);
-      } catch {
-        /* already enrolled */
-      }
-      return { enrolled: true, courseId: payment.courseId, testId: null as string | null };
-    }
-
-    throw ApiError.internal('Payment has no course or test target.');
+    return { enrolled: true, courseId: outcome.courseId, testId: outcome.testId };
   },
 
   async handleWebhook(rawBody: Buffer, signature: string | undefined) {
@@ -250,11 +323,9 @@ export const paymentService = {
     if (!secret) throw ApiError.internal('RAZORPAY_WEBHOOK_SECRET is not configured.');
     if (!signature) throw ApiError.badRequest('Missing webhook signature.');
 
-    const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-    const valid =
-      expected.length === signature.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-    if (!valid) throw ApiError.badRequest('Invalid webhook signature.');
+    if (!verifyWebhookSignature(rawBody, signature, secret)) {
+      throw ApiError.badRequest('Invalid webhook signature.');
+    }
 
     const body = JSON.parse(rawBody.toString('utf8')) as {
       event?: string;

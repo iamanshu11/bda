@@ -112,6 +112,7 @@ model User {
   enrollments    Enrollment[]
   testimonials   Testimonial[]
   contactMessages ContactMessage[]
+  auditLogs      AuditLog[]
   notifications  Notification[]
   moduleProgress StudentModuleProgress[]
   xpTransactions XpTransaction[]
@@ -613,22 +614,18 @@ model SocialLink {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  actorId    String?
-  actorEmail String?
-  actorRole  String?
-  action     String
-  targetType String
-  targetId   String?
-  summary    String?
-  metadata   Json?
-  ip         String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
 
-  @@index([actorId])
-  @@index([targetType])
-  @@index([action])
-  @@index([createdAt])
+  @@index([userId])
+  @@index([entity])
   @@map("audit_logs")
 }
 
@@ -1011,4 +1008,27 @@ model ExamViolation {
   @@index([userId])
   @@index([createdAt])
   @@map("exam_violations")
+}
+
+// ---------------------------------------------------------------------------
+// Admin audit trail (D5): an append-only log of sensitive admin actions.
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  // null if the actor was deleted later
+  actorEmail String?  // denormalized for durability
+  actorRole  String?
+  action     String   // e.g. CREATE, UPDATE, DELETE, FORCE_SUBMIT, ROLE_CHANGE
+  targetType String   // e.g. Course, User, WrittenTest, Payment
+  targetId   String?
+  summary    String?  // short human-readable description
+  metadata   Json?    // optional before/after diff or extra context
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

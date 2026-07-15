@@ -21,6 +21,7 @@ import {
   UserSquare2,
   ClipboardList,
   ShieldAlert,
+  ScrollText,
 } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { DashboardShell, type DashboardNavItem } from '@/components/dashboard/DashboardShell';
@@ -46,6 +47,7 @@ const nav: DashboardNavItem[] = [
   { label: 'FAQs', href: '/admin/faqs', icon: HelpCircle },
   { label: 'Messages', href: '/admin/messages', icon: Mail },
   { label: 'Users', href: '/admin/users', icon: Users },
+  { label: 'Audit Log', href: '/admin/audit-logs', icon: ScrollText },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -4,10 +4,11 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { env } from '@/config/env';
+import { env, isProd } from '@/config/env';
 import { HttpStatus } from '@/constants';
 import { sendSuccess } from '@/utils/ApiResponse';
 import { apiRateLimiter } from '@/middleware/rateLimiter';
+import { requestIdMiddleware } from '@/middleware/requestId';
 import { requestLoggerMiddleware } from '@/middleware/requestLogger';
 import { notFoundHandler } from '@/middleware/notFound';
 import { errorHandler } from '@/middleware/errorHandler';
@@ -24,10 +25,48 @@ export function createApp(): Application {
 
   // Security & platform middleware
   app.set('trust proxy', 1);
-  app.use(helmet());
+
+  // Security headers. The API serves JSON + static uploads only (no HTML app),
+  // so a strict CSP is safe. HSTS is enabled in production only.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          frameAncestors: ["'none'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          upgradeInsecureRequests: isProd ? [] : null,
+        },
+      },
+      crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow the frontend origin to load /uploads
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      hsts: isProd ? { maxAge: 63072000, includeSubDomains: true, preload: true } : false,
+    }),
+  );
+  app.use((_req, res, next) => {
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=(), fullscreen=(self)',
+    );
+    next();
+  });
+
+  // CORS allowlist: CLIENT_URL plus any comma-separated CLIENT_URLS.
+  const allowedOrigins = [
+    env.CLIENT_URL,
+    ...env.CLIENT_URLS.split(',').map((o) => o.trim()).filter(Boolean),
+  ];
   app.use(
     cors({
-      origin: env.CLIENT_URL,
+      origin(origin, cb) {
+        // Allow non-browser / server-to-server requests (no Origin header).
+        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        cb(new Error(`Origin not allowed by CORS: ${origin}`));
+      },
       credentials: true,
     }),
   );
@@ -53,10 +92,26 @@ export function createApp(): Application {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
+  app.use(requestIdMiddleware);
   app.use(requestLoggerMiddleware);
 
-  // Static uploads (local storage driver)
-  app.use('/uploads', express.static(path.resolve(process.cwd(), env.UPLOAD_DIR)));
+  // Static uploads (local storage driver). Harden against inline execution of
+  // user-uploaded content: nosniff, and force download for anything that isn't
+  // a plain image (PDFs/videos are still previewable by the browser's viewer).
+  app.use(
+    '/uploads',
+    express.static(path.resolve(process.cwd(), env.UPLOAD_DIR), {
+      setHeaders: (res, filePath) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        const ext = path.extname(filePath).toLowerCase();
+        const inlineOk = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf', '.mp4', '.webm', '.mov'];
+        if (!inlineOk.includes(ext)) {
+          res.setHeader('Content-Disposition', 'attachment');
+        }
+      },
+    }),
+  );
 
   // Health check
   app.get('/health', (_req: Request, res: Response) =>

@@ -254,6 +254,19 @@ const resources: ResourceConfig[] = [
     actions: ['list', 'get', 'update', 'remove'],
   },
   {
+    path: 'audit-logs',
+    // Cast: the AuditLog model is available after `prisma generate` (run a
+    // migration). Read-only — the log is append-only and written by the server.
+    model: (prisma as unknown as { auditLog: unknown }).auditLog as PrismaDelegate,
+    options: {
+      label: 'Audit log',
+      searchFields: ['action', 'targetType', 'actorEmail', 'summary'],
+      filterableFields: ['action', 'targetType'],
+      defaultOrderBy: { createdAt: 'desc' },
+    },
+    actions: ['list', 'get'],
+  },
+  {
     path: 'written-tests',
     model: prisma.writtenTest as unknown as PrismaDelegate,
     options: {

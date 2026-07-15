@@ -5,8 +5,16 @@ import { ApiError } from '@/utils/ApiError';
 import { slugify } from '@/helpers/slug';
 import { notificationService } from '@/services/notification.service';
 import { RoleName } from '@/constants';
+import {
+  type AnswerRow,
+  durationExpired,
+  endsAt,
+  gradeAnswers,
+  isGenuineTakeover,
+} from '@/utils/examRules';
 
-type AnswerRow = { questionId: string; selected: CorrectOption | null };
+// Re-export pure helpers so existing importers keep working.
+export { durationExpired, endsAt, gradeAnswers, isGenuineTakeover };
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -48,16 +56,6 @@ function inWindow(test: { availableFrom: Date; availableTo: Date }) {
   return now >= test.availableFrom && now <= test.availableTo;
 }
 
-function durationExpired(attempt: { startedAt: Date }, durationMins: number | null | undefined) {
-  if (!durationMins) return false;
-  return Date.now() > attempt.startedAt.getTime() + durationMins * 60_000;
-}
-
-function endsAt(attempt: { startedAt: Date }, durationMins: number | null | undefined) {
-  if (!durationMins) return null;
-  return new Date(attempt.startedAt.getTime() + durationMins * 60_000);
-}
-
 async function syncQuestionCount(testId: string) {
   const total = await prisma.writtenTestQuestion.count({ where: { testId } });
   await prisma.writtenTest.update({ where: { id: testId }, data: { totalQuestions: total } });
@@ -69,41 +67,6 @@ async function notifyAdmins(title: string, body: string) {
     select: { id: true },
   });
   for (const a of admins) notificationService.emit(a.id, title, body);
-}
-
-function gradeAnswers(
-  questions: { id: string; correctOption: CorrectOption; marks: number }[],
-  answers: AnswerRow[],
-  negativeMark: number,
-) {
-  const map = new Map(answers.map((a) => [a.questionId, a.selected]));
-  let correct = 0;
-  let wrong = 0;
-  let score = 0;
-  let totalMarks = 0;
-  const review = questions.map((q) => {
-    totalMarks += q.marks;
-    const selected = map.get(q.id) ?? null;
-    const isCorrect = selected === q.correctOption;
-    if (selected == null) {
-      /* unanswered */
-    } else if (isCorrect) {
-      correct += 1;
-      score += q.marks;
-    } else {
-      wrong += 1;
-      score -= negativeMark;
-    }
-    return {
-      questionId: q.id,
-      selected,
-      correctOption: q.correctOption,
-      isCorrect,
-      marks: q.marks,
-    };
-  });
-  score = Math.max(0, Math.round(score * 100) / 100);
-  return { correct, wrong, score, totalMarks, review };
 }
 
 async function finalizeAttempt(
@@ -263,11 +226,39 @@ export const writtenTestService = {
   },
 
   async updateQuestion(id: string, data: Record<string, unknown>) {
-    const q = await prisma.writtenTestQuestion.update({ where: { id }, data });
-    return q;
+    const existing = await prisma.writtenTestQuestion.findUnique({ where: { id } });
+    if (!existing) throw ApiError.notFound('Question not found.');
+    // Protect the answer key: once students have submitted/expired attempts on
+    // this test, the correct answer (and marks) may no longer be changed, or
+    // their scores would silently diverge. Typo fixes to the question text or
+    // explanation remain allowed.
+    const changesGrading =
+      (data.correctOption !== undefined && data.correctOption !== existing.correctOption) ||
+      (data.marks !== undefined && data.marks !== existing.marks);
+    if (changesGrading) {
+      const attempts = await prisma.writtenTestAttempt.count({
+        where: { testId: existing.testId, status: { in: ['SUBMITTED', 'EXPIRED'] } },
+      });
+      if (attempts > 0) {
+        throw ApiError.conflict(
+          'Cannot change the answer key or marks after students have attempted this test. Clone the test to make changes.',
+        );
+      }
+    }
+    return prisma.writtenTestQuestion.update({ where: { id }, data });
   },
 
   async deleteQuestion(id: string) {
+    const existing = await prisma.writtenTestQuestion.findUnique({ where: { id } });
+    if (!existing) throw ApiError.notFound('Question not found.');
+    const attempts = await prisma.writtenTestAttempt.count({
+      where: { testId: existing.testId, status: { in: ['SUBMITTED', 'EXPIRED'] } },
+    });
+    if (attempts > 0) {
+      throw ApiError.conflict(
+        'Cannot delete a question after students have attempted this test. Clone the test to make changes.',
+      );
+    }
     const q = await prisma.writtenTestQuestion.delete({ where: { id } });
     await syncQuestionCount(q.testId);
     return { deleted: true };
@@ -437,8 +428,7 @@ export const writtenTestService = {
       // ~25s). A rapid re-start (page re-mount, React StrictMode double-invoke,
       // quick refresh) is the same person resuming and must NOT be a violation.
       const lastBeat = existing.lastHeartbeatAt ?? existing.startedAt;
-      const secondsSinceActive = (Date.now() - new Date(lastBeat).getTime()) / 1000;
-      const genuineTakeover = Boolean(existing.sessionToken) && secondsSinceActive >= 25;
+      const genuineTakeover = isGenuineTakeover(new Date(lastBeat), Boolean(existing.sessionToken));
       if (genuineTakeover) {
         await prisma.examViolation.create({
           data: {

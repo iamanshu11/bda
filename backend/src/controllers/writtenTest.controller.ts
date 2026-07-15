@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import { writtenTestService } from '@/services/writtenTest.service';
 import { paymentService } from '@/services/payment.service';
+import { auditService } from '@/services/audit.service';
 import { sendSuccess } from '@/utils/ApiResponse';
 import { ApiError } from '@/utils/ApiError';
 import { HttpStatus } from '@/constants';
@@ -192,6 +193,15 @@ export const writtenTestController = {
 
   async forceSubmit(req: AuthenticatedRequest, res: Response) {
     const data = await writtenTestService.forceSubmit(req.params.id);
+    void auditService.record({
+      actorId: req.user?.userId ?? null,
+      actorRole: req.user?.role ?? null,
+      ip: req.ip ?? null,
+      action: 'FORCE_SUBMIT',
+      targetType: 'WrittenTestAttempt',
+      targetId: req.params.id,
+      summary: 'Admin force-submitted an exam attempt',
+    });
     return sendSuccess(res, data, 'Force submitted');
   },
 };
